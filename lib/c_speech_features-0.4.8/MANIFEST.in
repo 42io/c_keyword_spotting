@@ -1,0 +1,12 @@
+include python/base.h
+include python/sigproc.h
+include python/numpy.i
+include python/test/test.py
+include python/test/test.wav
+recursive-include kiss_fft130 *
+include c_speech_features.c
+include c_speech_features.h
+include c_speech_features_config.h.in
+include CMakeLists.txt
+include LICENSE
+include README.md
