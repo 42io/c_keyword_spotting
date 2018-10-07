@@ -20,14 +20,14 @@ See [google speech commands dataset](https://storage.cloud.google.com/download.t
 It takes some time, be patient. Finally you'll see confusion matrix.
 
     MLP confusion matrix...
-    house   | 0.955556 0.003704 0.040741 | 270
-    zero    | 0.000000 0.944444 0.055556 | 270
-    #unk#   | 0.014815 0.125926 0.859259 | 270
+    house   | 0.951852 0.003704 0.044444 | 270
+    zero    | 0.000000 0.929630 0.070370 | 270
+    #unk#   | 0.018519 0.051852 0.929630 | 270
 
     CNN confusion matrix...
-    house   | 0.940741 0.003704 0.055556 | 270
-    zero    | 0.000000 0.959259 0.040741 | 270
-    #unk#   | 0.025926 0.066667 0.907407 | 270
+    house   | 0.962963 0.000000 0.037037 | 270
+    zero    | 0.003704 0.944444 0.051852 | 270
+    #unk#   | 0.007407 0.029630 0.962963 | 270
 
 ### Just for Fun
    This is how our neural network sees the world.

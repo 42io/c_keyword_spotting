@@ -8,7 +8,7 @@
 
 static dataset_t dataset_create(uint32_t num_samples, uint32_t num_input, uint32_t num_output)
 {
-  dataset_t data = malloc(sizeof(*data));
+  dataset_t data = calloc(1, sizeof(*data));
   assert(data);
 
   data->input_height = 0;

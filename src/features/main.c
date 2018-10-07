@@ -66,7 +66,7 @@ static void extract_print_features(int16_t* samples, size_t n_samples)
 
   n_frames = n_items_in_frame = 0;
   feat = fe_mfcc_16k_16b_mono(samples, n_samples, &n_frames, &n_items_in_frame);
-  assert(n_frames == 99);
+  assert(n_frames == 49);
   assert(n_items_in_frame > 0);
   assert(feat);
 
@@ -78,7 +78,7 @@ static void extract_print_features(int16_t* samples, size_t n_samples)
       {
         printf(" ");
       }
-      printf("%.3f", feat[idx]);
+      printf("%.5f", feat[idx]);
     }
     printf("\n");
   }

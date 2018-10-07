@@ -36,6 +36,7 @@ int main(int argc, const char *argv[])
   putchar('\n');
 
   kann_delete(ann);
+  free(in);
 
   return 0;
 }
