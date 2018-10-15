@@ -25,9 +25,18 @@ It takes some time, be patient. Finally you'll see confusion matrix.
     #unk#   | 0.018519 0.051852 0.929630 | 270
 
     CNN confusion matrix...
-    house   | 0.962963 0.000000 0.037037 | 270
-    zero    | 0.003704 0.944444 0.051852 | 270
-    #unk#   | 0.007407 0.029630 0.962963 | 270
+    house   | 0.970370 0.000000 0.029630 | 270
+    zero    | 0.000000 0.974074 0.025926 | 270
+    #unk#   | 0.014815 0.062963 0.922222 | 270
+
+### Heap Memory Usage
+Some magic numbers to know before stepping into embedded world.
+
+    ~$ valgrind bin/fe test.wav                              # 1,047,256 bytes allocated
+    ~$ bin/fe test.wav | valgrind bin/guess models/mlp.model # 615,280 bytes allocated
+    ~$ bin/fe test.wav | valgrind bin/guess models/cnn.model # 2,908,048 bytes allocated
+
+See [ESP32](https://github.com/42io/esp32_kws) example.
 
 ### Just for Fun
    This is how our neural network sees the world.

@@ -2,13 +2,14 @@
 
 set -e
 
-DEST_DIR=$1
+DATASET_DIR=$1
+HUMAN_WORDS_DIR="${DATASET_DIR}/_human_words_"
 HTTP_URL='http://download.tensorflow.org/data/speech_commands_v0.02.tar.gz'
 
-DATASET_NOISE_DIR="${DEST_DIR}/_background_noise_"
-DATASET_TESTING_FILE="${DEST_DIR}/testing_list.txt"
-DATASET_TRAINING_FILE="${DEST_DIR}/training_list.txt"
-DATASET_VALIDATION_FILE="${DEST_DIR}/validation_list.txt"
+DATASET_NOISE_DIR="${DATASET_DIR}/_background_noise_"
+DATASET_TESTING_FILE='testing_list.txt'
+DATASET_TRAINING_FILE='training_list.txt'
+DATASET_VALIDATION_FILE='validation_list.txt'
 
 THRESHOLD_RMS=2000     # wav filter
 THRESHOLD_VOICE=5000   # wav filter
@@ -60,68 +61,76 @@ wav_is_good() {
   wav_left_padded "${1}" && wav_right_padded "${1}"
 }
 
-if [ ! -d "${DEST_DIR}" ]; then
+if [ ! -d "${DATASET_DIR}" ]; then
 
-  wget --directory-prefix="${DEST_DIR}" "${HTTP_URL}"
+  wget --directory-prefix="${DATASET_DIR}" "${HTTP_URL}"
 
-  base=`basename ${HTTP_URL}`
+  base=`basename "${HTTP_URL}"`
 
   echo "Checking md5 ${base}..."
-  md5=`md5sum "${DEST_DIR}/${base}" | awk '{ print $1 }'`
+  md5=`md5sum "${DATASET_DIR}/${base}" | awk '{ print $1 }'`
   if [ "6b74f3901214cb2c2934e98196829835" != "${md5}" ]; then
-    echo "ASSERT: ${DEST_DIR}/${base} md5 mismatch"
+    echo "ASSERT: ${DATASET_DIR}/${base} md5 mismatch"
     exit 1
   fi
 
   echo "Extracting ${base}..."
-  tar zxf "${DEST_DIR}/${base}" \
+  tar zxf "${DATASET_DIR}/${base}" \
     --checkpoint-action=ttyout="#%u: %T\r" \
-    -C "${DEST_DIR}"
+    -C "${DATASET_DIR}"
 
   # google dataset is very messy, cleanup duplicates
 
-  for dir in `find "${DEST_DIR}" -mindepth 1 -type d`; do
+  for dir in `find "${DATASET_DIR}" -mindepth 1 -type d`; do
     echo "Removing duplicates from ${dir} ..."
     fdupes -rdN "${dir}"
   done
 
   echo "Checking whole dataset for duplicates, be patient ..."
-  if [ ! -z `fdupes -r "${DEST_DIR}"` ]; then
+  if [ ! -z `fdupes -r "${DATASET_DIR}"` ]; then
     echo "ASSERT: can't fix google dataset"
     exit 2
   fi
 
+  mkdir "${HUMAN_WORDS_DIR}"
+  for dir in `find "${DATASET_DIR}" -mindepth 1 -type d`; do
+    if [ "${dir}" == "${DATASET_NOISE_DIR}" ]; then
+      continue
+    fi
+
+    if [ "${dir}" == "${HUMAN_WORDS_DIR}" ]; then
+      continue
+    fi
+
+    mv "${dir}" "${HUMAN_WORDS_DIR}"
+  done
+
   # cleanup suspicious wav samples
 
-  for wav in `find "${DEST_DIR}" -name "*.wav"`; do
+  for wav in `find "${HUMAN_WORDS_DIR}" -name '*.wav'`; do
     wav_is_good "${wav}" || rm "${wav}"
   done
 
   # actualize *.txt files
 
-  tfile=`mktemp`
-
-  find "${DEST_DIR}" -name "*.wav" \
+  find "${HUMAN_WORDS_DIR}" -name '*.wav' \
     | sort \
     | awk -F '/' '{ print $(NF-1)"/"$NF }' \
-    | grep -F -f "${DATASET_VALIDATION_FILE}" > "${tfile}"
-  mv "${tfile}" "${DATASET_VALIDATION_FILE}"
+    | grep -x -F -f "${DATASET_DIR}/${DATASET_VALIDATION_FILE}" \
+    > "${HUMAN_WORDS_DIR}/${DATASET_VALIDATION_FILE}"
 
-  find "${DEST_DIR}" -name "*.wav" \
+  find "${HUMAN_WORDS_DIR}" -name '*.wav' \
     | sort \
     | awk -F '/' '{ print $(NF-1)"/"$NF }' \
-    | grep -F -f "${DATASET_TESTING_FILE}" > "${tfile}"
-  mv "${tfile}" "${DATASET_TESTING_FILE}"
+    | grep -x -F -f "${DATASET_DIR}/${DATASET_TESTING_FILE}" \
+    > "${HUMAN_WORDS_DIR}/${DATASET_TESTING_FILE}"
 
-  if [ -f "${DATASET_TRAINING_FILE}" ]; then
-    echo "ASSERT: ${DATASET_TRAINING_FILE} was not here before"
-    exit 3
-  fi
-
-  find "${DEST_DIR}" -name "*.wav" -not -path "${DATASET_NOISE_DIR}/*" \
+  find "${HUMAN_WORDS_DIR}" -name '*.wav' \
     | sort \
     | awk -F '/' '{ print $(NF-1)"/"$NF }' \
-    | grep -v -F -f "${DATASET_VALIDATION_FILE}" -f "${DATASET_TESTING_FILE}" \
-    > "${DATASET_TRAINING_FILE}"
+    | grep -x -v -F -f "${DATASET_DIR}/${DATASET_VALIDATION_FILE}" -f "${DATASET_DIR}/${DATASET_TESTING_FILE}" \
+    > "${HUMAN_WORDS_DIR}/${DATASET_TRAINING_FILE}"
+
+  rm "${DATASET_DIR}/${DATASET_VALIDATION_FILE}" "${DATASET_DIR}/${DATASET_TESTING_FILE}"
 
 fi

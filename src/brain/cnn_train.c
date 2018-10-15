@@ -8,7 +8,7 @@ static kann_t *model_gen(int height, int width, int n_out, int n_h_fc, int n_h_f
 {
     kad_node_t *t;
     t = kad_feed(4, 1, 1, height, width), t->ext_flag |= KANN_F_IN;
-    t = kad_relu(kann_layer_conv2d(t, n_h_flt, 3, 3, 1, 1, 0, 0)); // 3x3 kernel; 1x1 stride; 0x0 padding
+    t = kad_relu(kann_layer_conv2d(t, n_h_flt, 1, 7, 1, 1, 0, 0)); // 1x7 kernel; 1x1 stride; 0x0 padding
     t = kad_relu(kann_layer_conv2d(t, n_h_flt, 3, 3, 1, 1, 0, 0));
     t = kad_max2d(t, 2, 2, 2, 2, 0, 0); // 2x2 kernel; 2x2 stride; 0x0 padding
     t = kann_layer_dropout(t, dropout);

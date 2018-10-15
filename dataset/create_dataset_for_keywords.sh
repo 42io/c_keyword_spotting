@@ -2,7 +2,7 @@
 
 set -e
 
-DATASET_SOURCE_DIR=$1
+DATASET_SOURCE_DIR="${1}/_human_words_"
 DATASET_WANTED_DIR=$2
 
 UNKNWN_WORD=$3
