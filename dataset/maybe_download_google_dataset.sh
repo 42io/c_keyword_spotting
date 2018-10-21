@@ -111,6 +111,15 @@ if [ ! -d "${DATASET_DIR}" ]; then
     wav_is_good "${wav}" || rm "${wav}"
   done
 
+  # make some noise
+
+  find "${DATASET_NOISE_DIR}" -name '*.wav' \
+    | xargs -I{} sox -V1 {} {} trim 0 1 : newfile : restart
+
+  for wav in `find "${DATASET_NOISE_DIR}" -name '*.wav'`; do
+    wav_size_ok "${wav}" || rm "${wav}"
+  done
+
   # actualize *.txt files
 
   find "${HUMAN_WORDS_DIR}" -name '*.wav' \

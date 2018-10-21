@@ -32,15 +32,17 @@ copy_unknown_wav_samples() {
   local txt=$2
   local word
   local unknown_cnt
-  local wanted_cnt
+  local wanted_cnt=$3
   local line_cnt=1
 
-  for word in ${WANTED_WORDS} ; do
-    local current_count=`grep -c "^${word}/" "${txt}"`
-    if ((wanted_cnt == 0 || wanted_cnt > current_count)); then
-      wanted_cnt=${current_count}
-    fi
-  done
+  if ((wanted_cnt == 0)); then
+    for word in ${WANTED_WORDS} ; do
+      local current_count=`grep -c "^${word}/" "${txt}"`
+      if ((wanted_cnt == 0 || wanted_cnt > current_count)); then
+        wanted_cnt=${current_count}
+      fi
+    done
+  fi
 
   mkdir "${DATASET_WANTED_DIR}/${type}/${UNKNWN_WORD}"
 
@@ -78,17 +80,19 @@ copy_wanted_wav_samples() {
   local type=$1
   local txt=$2
   local word
-  local wanted_cnt
+  local wanted_cnt=$3
 
   echo "Copying ${type}..."
   mkdir "${DATASET_WANTED_DIR}/${type}/"
 
-  for word in ${WANTED_WORDS} ; do
-    local current_count=`grep -c "^${word}/" "${txt}"`
-    if ((wanted_cnt == 0 || wanted_cnt > current_count)); then
-      wanted_cnt=${current_count}
-    fi
-  done
+  if ((wanted_cnt == 0)); then
+    for word in ${WANTED_WORDS} ; do
+      local current_count=`grep -c "^${word}/" "${txt}"`
+      if ((wanted_cnt == 0 || wanted_cnt > current_count)); then
+        wanted_cnt=${current_count}
+      fi
+    done
+  fi
 
   for word in ${WANTED_WORDS} ; do
     mkdir "${DATASET_WANTED_DIR}/${type}/${word}"
@@ -97,20 +101,22 @@ copy_wanted_wav_samples() {
     head -n "${wanted_cnt}" | \
     xargs -I{} cp "${DATASET_SOURCE_DIR}/{}" "${dest}"
 
-    local assert_cnt=`find "${dest}" -type f | wc -l`
-    if ((wanted_cnt != assert_cnt)); then
-      echo "ASSERT: wanted_cnt(${wanted_cnt}) != assert_cnt(${assert_cnt})"
-      exit 2
+    if [ -z "$3" ]; then
+      local assert_cnt=`find "${dest}" -type f | wc -l`
+      if ((wanted_cnt != assert_cnt)); then
+        echo "ASSERT: wanted_cnt(${wanted_cnt}) != assert_cnt(${assert_cnt})"
+        exit 2
+      fi
     fi
   done
 }
 
-copy_wanted_wav_samples "validation" "${DATASET_VALIDATION_FILE}"
-copy_wanted_wav_samples "testing" "${DATASET_TESTING_FILE}"
+copy_wanted_wav_samples "validation" "${DATASET_VALIDATION_FILE}" 365
+copy_wanted_wav_samples "testing" "${DATASET_TESTING_FILE}" 365
 copy_wanted_wav_samples "training" "${DATASET_TRAINING_FILE}"
 
-copy_unknown_wav_samples "validation" "${DATASET_VALIDATION_FILE}"
-copy_unknown_wav_samples "testing" "${DATASET_TESTING_FILE}"
+copy_unknown_wav_samples "validation" "${DATASET_VALIDATION_FILE}" 365
+copy_unknown_wav_samples "testing" "${DATASET_TESTING_FILE}" 365
 copy_unknown_wav_samples "training" "${DATASET_TRAINING_FILE}"
 
 echo "Checking keyword dataset for duplicates..."

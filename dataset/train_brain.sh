@@ -20,7 +20,7 @@ do_confusion_matrix() {
     find "${DATASET_WANTED_DIR}/testing/${word}/" "${DATASET_WANTED_DIR}/validation/${word}/" -type f \
       | xargs -I{} sh -c "./../bin/fe {} | ./../bin/guess ./../models/${model}" \
       | awk '{m=$1;j=1;for(i=j;i<=NF;i++)if($i>m){m=$i;j=i;} for(i=1;i<=NF;i++){if(i>1)printf " ";printf "%d", i==j} print ""}' \
-      | awk '{for(i=1;i<=NF;i++)sum[i]+=$i} END {for (i=1;i<=NF;i++){if(i>1)printf " ";printf "%f", sum[i]/NR} print " | " NR}'
+      | awk '{for(i=1;i<=NF;i++)sum[i]+=$i} END {for(i in sum){if(i>1)printf " ";printf "%f", sum[i]/NR} print " | " NR}'
   done
 
   echo "Guessed wrong..."

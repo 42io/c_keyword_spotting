@@ -67,7 +67,7 @@ static void extract_print_features(int16_t* samples, size_t n_samples)
   n_frames = n_items_in_frame = 0;
   feat = fe_mfcc_16k_16b_mono(samples, n_samples, &n_frames, &n_items_in_frame);
   assert(n_frames == 49);
-  assert(n_items_in_frame > 0);
+  assert(n_items_in_frame == 13);
   assert(feat);
 
   for(int i = 0, idx = 0; i < n_frames; i++)
