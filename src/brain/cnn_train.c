@@ -51,6 +51,7 @@ int main(int argc, const char *argv[])
   dataset_t data = dataset_load(argc > 1 ? argv[1] : NULL);
   kann_srand(131 /*seed, each train results are reproducible*/);
   kann_t *ann = model_gen(data->input_height, data->input_width, data->num_output, 128, 0.2f);
+  assert(!kann_is_rnn(ann));
   train(ann, data);
   save(ann);
   kann_delete(ann);

@@ -38,6 +38,7 @@ int main(int argc, const char *argv[])
   dataset_t data = dataset_load(argc > 1 ? argv[1] : NULL);
   kann_srand(11 /*seed, each train results are reproducible*/);
   kann_t *ann = model_gen(data->num_input, data->num_output, KANN_C_CEB, 2, 100);
+  assert(!kann_is_rnn(ann));
   train(ann, data);
   save(ann);
   kann_delete(ann);

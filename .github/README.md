@@ -10,6 +10,7 @@ Default models pretrained on four words: house zero marvin visual.
     ~$ src/brain/build.sh
     ~$ bin/fe test.wav | bin/guess models/mlp.model
     ~$ bin/fe test.wav | bin/guess models/cnn.model
+    ~$ bin/fe test.wav | bin/guess models/rnn.model
 
 ### Training
 See [google speech commands dataset](https://storage.cloud.google.com/download.tensorflow.org/data/speech_commands_v0.02.tar.gz) for available words.
@@ -26,7 +27,6 @@ It takes some time, be patient. Finally you'll see confusion matrix.
     visual  | 0.000000 0.013514 0.004505 0.936937 0.045045 | 222
     #unk#   | 0.046575 0.026027 0.132877 0.023288 0.771233 | 730
 
-
     CNN confusion matrix...
     house   | 0.974074 0.000000 0.000000 0.000000 0.025926 | 270
     zero    | 0.001658 0.966833 0.000000 0.006633 0.024876 | 603
@@ -34,12 +34,20 @@ It takes some time, be patient. Finally you'll see confusion matrix.
     visual  | 0.000000 0.013514 0.000000 0.977477 0.009009 | 222
     #unk#   | 0.015068 0.026027 0.013699 0.012329 0.932877 | 730
 
+    RNN confusion matrix...
+    house   | 0.985185 0.000000 0.000000 0.003704 0.011111 | 270
+    zero    | 0.001658 0.988391 0.000000 0.001658 0.008292 | 603
+    marvin  | 0.000000 0.000000 0.976744 0.003876 0.019380 | 258
+    visual  | 0.004505 0.000000 0.004505 0.990991 0.000000 | 222
+    #unk#   | 0.016438 0.009589 0.010959 0.006849 0.956164 | 730
+
 ### Heap Memory Usage
 Some magic numbers to know before stepping into embedded world.
 
     ~$ valgrind bin/fe test.wav                              # 1,047,256 bytes allocated
     ~$ bin/fe test.wav | valgrind bin/guess models/mlp.model # 616,944 bytes allocated
     ~$ bin/fe test.wav | valgrind bin/guess models/cnn.model # 2,437,708 bytes allocated
+    ~$ bin/fe test.wav | valgrind bin/guess models/rnn.model # 399,964 bytes allocated
 
 See [ESP32](https://github.com/42io/esp32_kws) example.
 

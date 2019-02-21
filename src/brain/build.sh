@@ -26,6 +26,15 @@ echo "CNN train build OK!"
 
 gcc -Werror -Wall -Wextra -Wpedantic -Wno-sign-compare \
   -I. -I../../lib/kann-master \
+  -DHAVE_PTHREAD \
+  ../../lib/kann-master/kann.c \
+  ../../lib/kann-master/kautodiff.c \
+  -o ../../bin/rnn_train rnn_train.c dataset.c -lm -lpthread
+
+echo "RNN train build OK!"
+
+gcc -Werror -Wall -Wextra -Wpedantic -Wno-sign-compare \
+  -I. -I../../lib/kann-master \
   ../../lib/kann-master/kann.c \
   ../../lib/kann-master/kautodiff.c \
   -o ../../bin/guess guess.c -lm

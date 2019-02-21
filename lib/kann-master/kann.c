@@ -975,3 +975,11 @@ const float *kann_apply1(kann_t *a, float *x)
 	kad_eval_at(a->n, a->v, i_out);
 	return a->v[i_out]->x;
 }
+
+int kann_is_rnn(kann_t *ann)
+{
+	for (int i = 0; i < ann->n; ++i) {
+		if (ann->v[i]->pre) return 1;
+	}
+	return 0;
+}
