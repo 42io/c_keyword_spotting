@@ -1,93 +1,49 @@
 #!/bin/bash
 
 set -e
+set -u
 
-DATASET_SOURCE_DIR="${1}/_human_words_"
-DATASET_WANTED_DIR=$2
+readonly DATASET_SOURCE_DIR="${1}/_human_words_"
+readonly DATASET_WANTED_DIR=$2
+readonly WANTED_WORDS=${@:3}
 
-UNKNWN_WORD=$3
-WANTED_WORDS=${@:4}
-
-DATASET_TESTING_FILE="${DATASET_SOURCE_DIR}/testing_list.txt"
-DATASET_TRAINING_FILE="${DATASET_SOURCE_DIR}/training_list.txt"
-DATASET_VALIDATION_FILE="${DATASET_SOURCE_DIR}/validation_list.txt"
-
-# unknown is virtual directory and shouldn't exist in origin dataset
-
-if [ -d "${DATASET_SOURCE_DIR}/${UNKNWN_WORD}" ]; then
-  echo "ASSERT: ${UNKNWN_WORD} conflicts with google dataset"
-  exit 1
-fi
+readonly DATASET_TESTING_FILE="${DATASET_SOURCE_DIR}/testing_list.txt"
+readonly DATASET_TRAINING_FILE="${DATASET_SOURCE_DIR}/training_list.txt"
+readonly DATASET_VALIDATION_FILE="${DATASET_SOURCE_DIR}/validation_list.txt"
 
 # clear directory for wanted dataset
 
 rm -rf "${DATASET_WANTED_DIR}"
 mkdir "${DATASET_WANTED_DIR}"
 
-# copy wav samples for validation
-
-copy_unknown_wav_samples() {
-
-  local type=$1
-  local txt=$2
-  local word
-  local unknown_cnt
-  local wanted_cnt=$3
-  local line_cnt=1
-
-  if ((wanted_cnt == 0)); then
-    for word in ${WANTED_WORDS} ; do
-      local current_count=`grep -c "^${word}/" "${txt}"`
-      if ((wanted_cnt == 0 || wanted_cnt > current_count)); then
-        wanted_cnt=${current_count}
-      fi
-    done
-  fi
-
-  mkdir "${DATASET_WANTED_DIR}/${type}/${UNKNWN_WORD}"
-
-  while true ; do
-
-    local wav
-    local unknown
-
-    for unknown in `awk -F '/' '{ print $(NF-1) }' "${txt}" | sort -u`; do
-
-      for word in ${WANTED_WORDS} ; do
-        if [ "${word}" == "${unknown}" ]; then
-          continue 2
-        fi
-      done
-
-      wav=`grep "^${unknown}/.\+0\.wav$" "${txt}" | awk -F '/' -v c="${line_cnt}" 'NR==c { print $NF }'`
-
-      cp "${DATASET_SOURCE_DIR}/${unknown}/${wav}" \
-         "${DATASET_WANTED_DIR}/${type}/${UNKNWN_WORD}/${unknown}_${wav}"
-
-      unknown_cnt=$((unknown_cnt+1))
-      if ((unknown_cnt == wanted_cnt)); then
-        break 2
-      fi
-    done
-
-    line_cnt=$((line_cnt+1))
-
-  done
+shuf() {
+  mawk 'BEGIN {srand(42); OFMT="%.17f"} {print rand(), $0}' \
+    | sort -k1,1n | awk '{print $2}'
 }
 
 copy_wanted_wav_samples() {
-
   local type=$1
   local txt=$2
   local word
-  local wanted_cnt=$3
+  local dest
+  local assert_cnt
+  local current_count
+  local wanted_cnt=${3:-0}
 
-  echo "Copying ${type}..."
+  echo "Copying Wanted Words ${type}..."
+
+  for word in ${WANTED_WORDS} ; do
+    if [ ! -d "${DATASET_SOURCE_DIR}/${word}" ]; then
+      echo "ASSERT: no such word ${word}"
+      exit 1
+    fi
+  done
+
   mkdir "${DATASET_WANTED_DIR}/${type}/"
 
   if ((wanted_cnt == 0)); then
     for word in ${WANTED_WORDS} ; do
-      local current_count=`grep -c "^${word}/" "${txt}"`
+      current_count=`grep -c "^${word}/" "${txt}"`
       if ((wanted_cnt == 0 || wanted_cnt > current_count)); then
         wanted_cnt=${current_count}
       fi
@@ -95,14 +51,15 @@ copy_wanted_wav_samples() {
   fi
 
   for word in ${WANTED_WORDS} ; do
-    mkdir "${DATASET_WANTED_DIR}/${type}/${word}"
-    local dest="${DATASET_WANTED_DIR}/${type}/${word}"
-    grep "^${word}/" "${txt}" | \
-    head -n "${wanted_cnt}" | \
-    xargs -I{} cp "${DATASET_SOURCE_DIR}/{}" "${dest}"
+    dest="${DATASET_WANTED_DIR}/${type}/${word}"
+    mkdir "${dest}"
+    grep "^${word}/" "${txt}" \
+      | shuf \
+      | head -n "${wanted_cnt}" \
+      | xargs -I{} cp "${DATASET_SOURCE_DIR}/{}" "${dest}"
 
-    if [ -z "$3" ]; then
-      local assert_cnt=`find "${dest}" -type f | wc -l`
+    if [ -z "${3:-}" ]; then
+      assert_cnt=`find "${dest}" -type f | wc -l`
       if ((wanted_cnt != assert_cnt)); then
         echo "ASSERT: wanted_cnt(${wanted_cnt}) != assert_cnt(${assert_cnt})"
         exit 2
@@ -114,13 +71,3 @@ copy_wanted_wav_samples() {
 copy_wanted_wav_samples "validation" "${DATASET_VALIDATION_FILE}" 365
 copy_wanted_wav_samples "testing" "${DATASET_TESTING_FILE}" 365
 copy_wanted_wav_samples "training" "${DATASET_TRAINING_FILE}"
-
-copy_unknown_wav_samples "validation" "${DATASET_VALIDATION_FILE}" 365
-copy_unknown_wav_samples "testing" "${DATASET_TESTING_FILE}" 365
-copy_unknown_wav_samples "training" "${DATASET_TRAINING_FILE}"
-
-echo "Checking keyword dataset for duplicates..."
-if [ ! -z `fdupes . -r "${DATASET_WANTED_DIR}"` ]; then
-  echo "ASSERT: duplicates found"
-  exit 3
-fi

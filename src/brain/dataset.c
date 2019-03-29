@@ -66,6 +66,7 @@ static dataset_t dataset_from_fd(FILE *fd)
     for(j = 0; j != num_output; j++)
     {
       assert(fscanf(fd, "%f", &data->output[i][j]) == 1);
+      assert(data->output[i][j] == 0 || data->output[i][j] == 1);
     }
     assert(fgetc(fd) == '\n');
   }

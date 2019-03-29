@@ -32,14 +32,25 @@ static void read_wave_fd(FILE *fd, char* dest, size_t sz)
   wave_header_t header;
 
   assert(fread(&header, 1, sizeof header, fd) == sizeof header);
-  assert(strncmp(header.chunk_id, "RIFF", sizeof header.chunk_id) == 0);
-  assert(strncmp(header.format, "WAVE", sizeof header.format) == 0);
+  assert(memcmp(header.chunk_id, "RIFF" /* little-endian */, sizeof header.chunk_id) == 0);
+  assert(memcmp(header.format, "WAVE", sizeof header.format) == 0);
   assert(header.audio_format == 1);
   assert(header.num_channels == 1);
   assert(header.sample_rate == 16000);
   assert(header.bits_per_sample == 16);
   assert(header.datachunk_size == 32000);
   assert(fread(dest, 1, sz, fd) == sz);
+  assert(fgetc(fd) == EOF);
+
+  // arecord -d 1 -f S16_LE -r 16000 | head test.wav -c44 | xxd -i
+  const unsigned char wav_44[] = {
+    0x52, 0x49, 0x46, 0x46, 0x24, 0x7d, 0x00, 0x00, 0x57, 0x41, 0x56, 0x45,
+    0x66, 0x6d, 0x74, 0x20, 0x10, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00,
+    0x80, 0x3e, 0x00, 0x00, 0x00, 0x7d, 0x00, 0x00, 0x02, 0x00, 0x10, 0x00,
+    0x64, 0x61, 0x74, 0x61, 0x00, 0x7d, 0x00, 0x00
+  };
+  assert(sizeof wav_44 == sizeof header);
+  assert(memcmp(wav_44, &header, sizeof header) == 0);
 }
 
 /*********************************************************************/
