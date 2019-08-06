@@ -22,10 +22,11 @@ static kann_t *model_gen(int n_in, int n_out, int n_h_layers, int n_h_neurons, f
 
 /*********************************************************************/
 
-static void train(kann_t *ann, dataset_t d, float lr, int mini_size, int max_epoch, const char *fn, int n_threads)
+static void train(kann_t *ann, dataset_t *ds, float lr, int mini_size, int max_epoch, const char *fn, int n_threads)
 {
   float **x, **y, *r, best_cost = 1e30f;
-  int epoch, j, n_var, *shuf, ulen = d->input_height, n_in = d->input_width, n_out = d->num_output;
+  int epoch, j, n_var, *shuf, ulen = ds->input_height, n_in = ds->input_width, n_out = ds->num_output;
+  dataset_array_t *d = &ds->train;
   kann_t *ua;
 
   assert(kann_dim_in(ann) == n_in);
@@ -42,7 +43,7 @@ static void train(kann_t *ann, dataset_t d, float lr, int mini_size, int max_epo
     x[j] = (float*)calloc(mini_size * n_in, sizeof(float));
   }
   y[0] = (float*)calloc(mini_size * n_out, sizeof(float));
-  shuf = (int*)calloc(d->num_samples, sizeof(int));
+  shuf = (int*)calloc(d->len, sizeof(int));
 
   ua = kann_unroll(ann, ulen);
   kann_set_batch_size(ua, mini_size);
@@ -51,10 +52,10 @@ static void train(kann_t *ann, dataset_t d, float lr, int mini_size, int max_epo
   kann_feed_bind(ua, KANN_F_TRUTH, 0, y);
   kann_switch(ua, 1);
   for (epoch = 0; epoch < max_epoch; ++epoch) {
-    kann_shuffle(d->num_samples, shuf);
+    kann_shuffle(d->len, shuf);
     double cost = 0.0;
     int tot = 0, tot_base = 0, n_cerr = 0;
-    for (j = 0; j < d->num_samples - mini_size; j += mini_size) {
+    for (j = 0; j < d->len - mini_size; j += mini_size) {
       int b, k;
       for (b = 0; b < mini_size; ++b) {
         int s = shuf[j + b];
@@ -97,16 +98,17 @@ static void train(kann_t *ann, dataset_t d, float lr, int mini_size, int max_epo
 
 int main(int argc, const char *argv[])
 {
-  dataset_t data = dataset_load(argc > 1 ? argv[1] : NULL);
+  assert(argc == 5);
+  dataset_t *ds = dataset_load(argv[1], atol(argv[2]), atol(argv[3]), atol(argv[4]));
 
-  int mini_size = 64, max_epoch = 500, seed = 84, n_h_layers = 2, n_h_neurons = 64, n_threads = 1;
+  int mini_size = 64, max_epoch = 500, seed = 84, n_h_layers = 3, n_h_neurons = 32, n_threads = 1;
   float lr = 0.001f, dropout = 0.2f;
 
   kann_srand(seed /*seed, each train results are reproducible*/);
-  kann_t *ann = model_gen(data->input_width, data->num_output, n_h_layers, n_h_neurons, dropout);
+  kann_t *ann = model_gen(ds->input_width, ds->num_output, n_h_layers, n_h_neurons, dropout);
   assert(kann_is_rnn(ann));
 
-  train(ann, data, lr, mini_size, max_epoch, "./../models/rnn-epoch-%d.model", n_threads);
+  train(ann, ds, lr, mini_size, max_epoch, "./../models/rnn-epoch-%d.model", n_threads);
   kann_delete(ann);
 
   return 0;

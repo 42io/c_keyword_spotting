@@ -3,22 +3,23 @@
 set -e
 set -u
 
-readonly DATA_FILE=$1
-readonly DATASET_WANTED_DIR=$2
-readonly UNKNWN_WORD=$3
-readonly PUBLIC_WORD=$4
-readonly WANTED_WORDS=${@:5}
+cd "`dirname "${BASH_SOURCE[0]}"`"
+
+export LC_ALL=C
+
+readonly DATASET_FILE_NAME=$1
+readonly DATASET_NUM_OUTPUT=$4
 
 bash ./../src/brain/build.sh
 
 do_confusion_matrix() {
   local model=$1
-  local word
-
-  for word in ${WANTED_WORDS} ${UNKNWN_WORD} ${PUBLIC_WORD} ; do
-    echo -ne "${word}\t| "
-    find "${DATASET_WANTED_DIR}/testing/${word}/" "${DATASET_WANTED_DIR}/validation/${word}/" -type f \
-      | xargs -I{} sh -c "./../bin/fe '{}' | ./../bin/guess ./../models/${model}" \
+  local i
+  for i in `seq ${DATASET_NUM_OUTPUT}` ; do
+    awk -v m="${DATASET_NUM_OUTPUT}" '$1 >= m' "${DATASET_FILE_NAME}" \
+      | awk -v i="${i}" -v m="${DATASET_NUM_OUTPUT}" '$1 == i - 1 + m || $1 == i - 1 + 2*m' \
+      | awk '{for(i=2;i<=NF;i++){if(i>2)printf " ";printf $i} print ""}' \
+      | ./../bin/guess "./../models/${model}" \
       | awk '{m=$1;j=1;for(i=j;i<=NF;i++)if($i>m){m=$i;j=i;} for(i=1;i<=NF;i++){if(i>1)printf " ";printf "%d", i==j} print ""}' \
       | awk '{for(i=1;i<=NF;i++)sum[i]+=$i} END {for(j=1;j<i;j++){if(j>1)printf " ";printf "%.2f", sum[j]/NR} print " | " NR}'
   done
@@ -26,16 +27,13 @@ do_confusion_matrix() {
 
 do_validation() {
   local model=$1
-  local word
-  local -i output_idx=
-  local wav
-
-  for word in ${WANTED_WORDS} ${UNKNWN_WORD} ${PUBLIC_WORD} ; do
-    output_idx+=1
-    for wav in `find "${DATASET_WANTED_DIR}/testing/${word}/" "${DATASET_WANTED_DIR}/validation/${word}/" -type f `; do
-      ./../bin/fe "${wav}" | ./../bin/guess "./../models/${model}" \
-       | awk -v x="${output_idx}" -v w="${wav}" '{m=$1;j=1;for(i=j;i<=NF;i++)if($i>m){m=$i;j=i;} if(j!=x)print w}'
-    done
+  local i
+  for i in `seq ${DATASET_NUM_OUTPUT}` ; do
+    awk -v m="${DATASET_NUM_OUTPUT}" '$1 >= m' "${DATASET_FILE_NAME}" \
+      | awk -v i="${i}" -v m="${DATASET_NUM_OUTPUT}" '$1 == i - 1 + m || $1 == i - 1 + 2*m' \
+      | awk '{for(i=2;i<=NF;i++){if(i>2)printf " ";printf $i} print ""}' \
+      | ./../bin/guess "./../models/${model}" \
+      | awk -v x="${i}" '{m=$1;j=1;for(i=j;i<=NF;i++)if($i>m){m=$i;j=i;} if(j!=x)print x}'
   done
 }
 
@@ -65,25 +63,22 @@ leave_only_the_best_model() {
 
 echo 'MLP training...'
 rm ./../models/mlp.model
-./../bin/mlp_train "${DATA_FILE}"
+./../bin/mlp_train "${@}"
 echo 'MLP confusion matrix...'
 do_confusion_matrix 'mlp.model'
 echo "MLP guessed wrong `do_validation 'mlp.model' | wc -l`..."
-do_validation 'mlp.model'
 
 echo 'CNN training...'
 rm ./../models/cnn.model
-./../bin/cnn_train "${DATA_FILE}"
+./../bin/cnn_train "${@}"
 echo 'CNN confusion matrix...'
 do_confusion_matrix 'cnn.model'
 echo "CNN guessed wrong `do_validation 'cnn.model' | wc -l`..."
-do_validation 'cnn.model'
 
 echo 'RNN training...'
 rm -f ./../models/rnn-epoch-*.model
-./../bin/rnn_train "${DATA_FILE}"
+./../bin/rnn_train "${@}"
 leave_only_the_best_model 'rnn-epoch-*.model' 'rnn.model'
 echo 'RNN confusion matrix...'
 do_confusion_matrix 'rnn.model'
 echo "RNN guessed wrong `do_validation 'rnn.model' | wc -l`..."
-do_validation 'rnn.model'

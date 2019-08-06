@@ -1,6 +1,7 @@
 #include "kann.h"
 #include "dataset.h"
 #include <assert.h>
+#include "norm.h"
 
 /*********************************************************************/
 
@@ -16,12 +17,16 @@ static kann_t *model_gen(int n_in, int n_out, int loss_type, int n_h_layers, int
 
 /*********************************************************************/
 
-static void train(kann_t *ann, dataset_t data)
+static void train(kann_t *ann, dataset_t *ds)
 {
-  assert(kann_dim_in(ann) == data->num_input);
-  assert(kann_dim_out(ann) == data->num_output);
+  assert(kann_dim_in(ann) == ds->num_input);
+  assert(kann_dim_out(ann) == ds->num_output);
+  for(int i = 0; i < ds->train.len; i++)
+  {
+    norm_min_max(ds->train.input[i], ds->num_input);
+  }
   kann_train_fnn1(ann, 0.001f, 64, 100, 10, 0.1f,
-                  data->num_samples, data->input, data->output);
+                  ds->train.len, ds->train.input, ds->train.output);
 }
 
 /*********************************************************************/
@@ -35,11 +40,12 @@ static void save(kann_t *ann)
 
 int main(int argc, const char *argv[])
 {
-  dataset_t data = dataset_load(argc > 1 ? argv[1] : NULL);
+  assert(argc == 5);
+  dataset_t *ds = dataset_load(argv[1], atol(argv[2]), atol(argv[3]), atol(argv[4]));
   kann_srand(11 /*seed, each train results are reproducible*/);
-  kann_t *ann = model_gen(data->num_input, data->num_output, KANN_C_CEB, 2, 100);
+  kann_t *ann = model_gen(ds->num_input, ds->num_output, KANN_C_CEB, 2, 100);
   assert(!kann_is_rnn(ann));
-  train(ann, data);
+  train(ann, ds);
   save(ann);
   kann_delete(ann);
 

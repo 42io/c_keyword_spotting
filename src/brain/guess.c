@@ -1,6 +1,6 @@
 #include "kann.h"
-#include <stdlib.h>
 #include <assert.h>
+#include "norm.h"
 
 /*********************************************************************/
 
@@ -11,9 +11,11 @@ int main(int argc, const char *argv[])
   assert(ann);
 
   const int in_num = kann_dim_in(ann);
-  float* in = calloc(in_num, sizeof(float*));
+  float* in = malloc(in_num * sizeof(float*));
   assert(in);
   const float* out = NULL;
+
+loop:
 
   if(kann_is_rnn(ann))
   {
@@ -25,10 +27,8 @@ int main(int argc, const char *argv[])
       {
         assert(scanf("%f", &in[i]) == 1);
       }
-      assert(getchar() == '\n');
       out = kann_apply1(ann, in);
     }
-    assert(getchar() == EOF);
     kann_rnn_end(ann);
   }
   else
@@ -37,12 +37,11 @@ int main(int argc, const char *argv[])
     {
       assert(scanf("%f", &in[i]) == 1);
     }
-    assert(getchar() == '\n');
-    assert(getchar() == EOF);
-
+    norm_min_max(in, in_num);
     out = kann_apply1(ann, in);
   }
 
+  assert(getchar() == '\n');
   assert(out);
 
   for (int i = 0; i < kann_dim_out(ann); i++)
@@ -54,6 +53,13 @@ int main(int argc, const char *argv[])
     printf("%f", out[i]);
   }
   putchar('\n');
+
+  const int ch = getchar();
+  if(ch != EOF)
+  {
+    assert(ch == ungetc(ch, stdin));
+    goto loop;
+  }
 
   kann_delete(ann);
   free(in);

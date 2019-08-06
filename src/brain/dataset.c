@@ -6,95 +6,105 @@
 
 /*********************************************************************/
 
-static dataset_t dataset_create(uint32_t num_samples, uint32_t num_input, uint32_t num_output)
+static dataset_t* dataset_from_fd(
+  FILE *fd,
+  const uint32_t input_height,
+  const uint32_t input_width,
+  const uint32_t num_output)
 {
-  dataset_t data = calloc(1, sizeof(*data));
-  assert(data);
+  dataset_t *ds = malloc(sizeof(*ds));
+  assert(ds);
 
-  data->input_height = 0;
-  data->input_width = 0;
-  data->num_samples = num_samples;
-  data->num_input = num_input;
-  data->num_output = num_output;
+  ds->train.input  = ds->valid.input  = ds->test.input  = NULL;
+  ds->train.output = ds->valid.output = ds->test.output = NULL;
+  ds->train.len    = ds->valid.len    = ds->test.len    = 0;
+  ds->input_width  = input_width;
+  ds->input_height = input_height;
+  ds->num_output   = num_output;
+  ds->num_input    = input_width * input_height;
 
-  data->input = calloc(num_samples, sizeof(float*));
-  assert(data->input);
-
-  data->output = calloc(num_samples, sizeof(float*));
-  assert(data->output);
-
-  for (int i = 0; i < num_samples; i++)
+  int32_t output_val = 0;
+  while(fscanf(fd, "%d", &output_val) == 1)
   {
-    data->input[i] = calloc(num_input, sizeof(float));
-    data->output[i] = calloc(num_output, sizeof(float));
-    assert(data->input[i]);
-    assert(data->output[i]);
-  }
-
-  return data;
-}
-
-/*********************************************************************/
-
-static dataset_t dataset_from_fd(FILE *fd)
-{
-  uint32_t num_input, num_output, num_samples, i, j;
-  dataset_t data;
-
-  assert(fscanf(fd, "%u %u %u", &num_samples, &num_input, &num_output) == 3);
-  assert(fgetc(fd) == '\n');
-
-  data = dataset_create(num_samples, num_input, num_output);
-
-  for(i = 0; i != num_samples; i++)
-  {
-    for(j = 0; j != num_input; j++)
+    dataset_array_t *dest;
+    if(output_val < num_output)
     {
-      assert(fscanf(fd, "%f", &data->input[i][j]) == 1);
-      if(i == 0)
-      {
-        const int c = fgetc(fd);
-        if(c == '\n')
-        {
-          data->input_height++;
-        }
-        ungetc(c, fd);
-      }
+      dest = &ds->train;
     }
-    assert(fgetc(fd) == '\n');
-
-    for(j = 0; j != num_output; j++)
+    else if(output_val < 2 * num_output)
     {
-      assert(fscanf(fd, "%f", &data->output[i][j]) == 1);
-      assert(data->output[i][j] == 0 || data->output[i][j] == 1);
+      output_val -= num_output;
+      dest = &ds->valid;
+    }
+    else
+    {
+      output_val -= 2 * num_output;
+      dest = &ds->test;
+    }
+
+    assert(output_val < num_output);
+
+    uint32_t i = dest->len++;
+
+    dest->output = realloc(dest->output, dest->len * sizeof(float*));
+    assert(dest->output);
+    dest->output[i] = malloc(num_output * sizeof(float));
+    for(int j = 0; j < num_output; j++)
+    {
+      dest->output[i][j] = j == output_val ? 1 : 0;
+    }
+
+    dest->input = realloc(dest->input, dest->len * sizeof(float*));
+    assert(dest->input);
+    dest->input[i] = malloc(ds->num_input * sizeof(float));
+    for(int j = 0; j < ds->num_input; j++)
+    {
+      assert(fscanf(fd, "%f", &dest->input[i][j]) == 1);
     }
     assert(fgetc(fd) == '\n');
   }
 
   assert(fgetc(fd) == EOF);
 
-  assert(data->num_input % data->input_height == 0);
-  data->input_width = data->num_input / data->input_height;
-
-  return data;
+  return ds;
 }
 
 /*********************************************************************/
 
-dataset_t dataset_load(const char* path)
+dataset_t* dataset_load(
+  const char* const path,
+  const uint32_t input_height,
+  const uint32_t input_width,
+  const uint32_t num_output)
 {
-  dataset_t data;
   FILE *fd = path && strcmp(path, "-") ? fopen(path, "r") : stdin;
   assert(fd);
 
-  data = dataset_from_fd(fd);
+  dataset_t* ds = dataset_from_fd(fd, input_height, input_width, num_output);
 
   if(fd != stdin)
   {
     fclose(fd);
   }
 
-  return data;
+  printf("Dataset train %u, valid %u, test %u\n",
+          ds->train.len, ds->valid.len, ds->test.len);
+
+  assert(ds->train.output[0][0] == 1);
+  assert(ds->valid.output[0][0] == 1);
+  assert(ds->test.output[0][0]  == 1);
+  assert(ds->train.output[0][num_output - 1] == 0);
+  assert(ds->valid.output[0][num_output - 1] == 0);
+  assert(ds->test.output[0][num_output  - 1] == 0);
+
+  assert(ds->train.output[ds->train.len - 1][num_output - 1] == 1);
+  assert(ds->valid.output[ds->valid.len - 1][num_output - 1] == 1);
+  assert(ds->test.output[ds->test.len   - 1][num_output - 1] == 1);
+  assert(ds->train.output[ds->train.len - 1][0] == 0);
+  assert(ds->valid.output[ds->valid.len - 1][0] == 0);
+  assert(ds->test.output[ds->test.len   - 1][0] == 0);
+
+  return ds;
 }
 
 /*********************************************************************/
